@@ -274,3 +274,30 @@ For references on individual template brains, please see their docstrings:
 ```
 
 When in doubt, feel free to open an [issue](https://github.com/navis-org/navis-flybrains/issues/new) to ask for advice.
+
+## Troubleshooting
+
+### `OSError` when reading HDF5 deformation fields
+
+<details>
+When using the JRC H5 transforms, you may encounter an `OSError` similar to this one:
+
+```python
+OSError: Can't synchronously read data (minimum number of bits exceeds size of type)
+```
+
+This error is likely caused by an incompatability between the `hdf5` version on your machine and the one used
+to encode the data files. For example, on my MacBook with `h5py` `3.12.1` and `HDF5` `1.12.2` it works just fine
+but on a Linux machine with `h5py` `3.12.1` and `HDF5` `1.14.4` I get the above error.
+
+My current workaround is to create a new conda environment to force an older `hdf5` version:
+
+```bash
+conda create -n hdf5_112 \
+  -c conda-forge \
+  python=3.11 \
+  hdf5=1.12.* \
+  h5py=3.12.1
+```
+
+</details>
