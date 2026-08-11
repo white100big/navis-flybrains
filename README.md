@@ -301,3 +301,50 @@ conda create -n hdf5_112 \
 ```
 
 </details>
+
+### Downloads fail on Google Colab (and other cloud machines)
+
+<details>
+`download_jrc_transforms` and `download_jrc_vnc_transforms` fetch their H5 files from figshare.
+On Google Colab - and likely on other cloud VMs, CI runners or compute clusters - these downloads
+tend to fail with an `HTTPError`:
+
+```python
+requests.exceptions.HTTPError: Server returned an HTML page instead of a file for
+https://ndownloader.figshare.com/files/... This typically means the request was blocked [...]
+```
+
+The figshare download endpoint sits behind a web application firewall which appears to refuse
+requests coming from datacenter IP ranges. The request never reaches figshare itself, so there is
+nothing to fix on our end: no combination of headers, retries or tokens will get past it. You can
+confirm this is what you are seeing by checking which server answers:
+
+```bash
+!curl -sL "https://ndownloader.figshare.com/files/42106125" -o /dev/null -D - -r 0-99 | head
+```
+
+A `403` with `server: awselb/2.0` and no `location:` header means you have been blocked.
+
+Colab hands out a different IP for every session, so **restarting the runtime and trying again is
+worth a shot**. If that doesn't help, download the transforms on a machine that does work, copy
+them to Google Drive, and point `flybrains` at that directory:
+
+```python
+import os
+from google.colab import drive
+drive.mount('/content/drive')
+
+# NOTE: this must be set *before* importing flybrains
+os.environ['FLYBRAINS_DATA'] = '/content/drive/MyDrive/flybrain-data'
+
+import flybrains
+```
+
+The environment variable has to be set first because `flybrains` registers the transforms at import.
+
+Note that a failed download will never leave a partial or corrupt file behind: incomplete downloads
+are kept as `.part` files and only moved into place once complete. If you are on an older version of
+`flybrains` this was not the case - check for suspiciously small `.h5` files in your data directory
+(they should be at least ~100Mb each) and delete them.
+
+</details>

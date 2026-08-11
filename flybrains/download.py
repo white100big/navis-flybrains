@@ -284,6 +284,14 @@ def download_jrc_transforms(data_home=None, skip_existing=True):
 
     Note that these transforms are fairly large: between 550Mb and 2Gb each.
 
+    Important
+    ---------
+    These files are hosted on figshare whose download endpoint sits behind a
+    firewall that appears to block datacenter IP ranges. Downloads are therefore
+    likely to fail with an ``HTTPError`` on Google Colab and other cloud VMs, CI
+    runners or compute clusters. See the troubleshooting section of the README
+    for a workaround.
+
     Parameters
     ----------
     data_home :     str
@@ -340,6 +348,14 @@ def download_jrc_vnc_transforms(data_home=None, skip_existing=True):
       - JRCVNC2018U <-> JRCVNC2018M (150Mb)
       - JRCVNC2018M <-> MANC (1Gb)
 
+    Important
+    ---------
+    These files are hosted on figshare whose download endpoint sits behind a
+    firewall that appears to block datacenter IP ranges. Downloads are therefore
+    likely to fail with an ``HTTPError`` on Google Colab and other cloud VMs, CI
+    runners or compute clusters. See the troubleshooting section of the README
+    for a workaround.
+
     Parameters
     ----------
     data_home :     str
@@ -386,48 +402,105 @@ def download_from_url(url, dst, resume=False):
     dst :       str
                 Destination filepath.
     resume :    bool
-                If True, will attempt to resume download if file exists. If
-                False, will overwrite existing files!
+                If True, will attempt to pick up where a previously interrupted
+                download left off. If False, any partial download is discarded
+                and the file is fetched from scratch. Either way an existing
+                (complete) file at ``dst`` will be overwritten!
 
     Returns
     -------
     filesize
                 Filesize in bytes.
 
-    """
-    try:
-        file_size = int(
-            requests.head(url, allow_redirects=True).headers["Content-Length"]
-        )
-    except KeyError:
-        file_size = None
+    Raises
+    ------
+    requests.HTTPError
+                If the server responds with an error, hands us something that
+                isn't a file (e.g. a firewall's block page - see the README on
+                downloads from Google Colab), or the transfer comes up short.
+                In either case no file is written to ``dst``.
 
-    if file_size and os.path.exists(dst) and resume:
-        first_byte = os.path.getsize(dst)
-        mode = "ab"
+    """
+    # We download to a temporary file and only move it into place once we're
+    # done. That way an interrupted download can't masquerade as a finished one
+    # (and be skipped by `skip_existing`) later on.
+    part = f"{dst}.part"
+
+    if resume and os.path.exists(part):
+        first_byte = os.path.getsize(part)
     else:
         first_byte = 0
-        mode = "wb"
 
-    if file_size and first_byte >= file_size:
-        return file_size
+    header = {"Range": f"bytes={first_byte}-"} if first_byte else {}
 
-    header = {"Range": f"bytes={first_byte}-{file_size}"}
-    with tqdm(
-        total=file_size,
-        initial=first_byte,
-        unit="B",
-        unit_scale=True,
-        desc=os.path.basename(dst),
-    ) as pbar:
-        req = requests.get(url, headers=header, stream=True, allow_redirects=True)
-        with open(dst, mode) as f:
-            for chunk in req.iter_content(chunk_size=1024):
-                if chunk:
-                    f.write(chunk)
-                    pbar.update(1024)
+    # Note that we must not ask for the file size via a separate HEAD request
+    # here: figshare redirects to a pre-signed S3 URL which is only valid for
+    # GET and responds to a HEAD with a 403. We instead take the size off the
+    # streamed GET response.
+    with requests.get(url, headers=header, stream=True, allow_redirects=True) as req:
+        # A 416 means the server can't satisfy our range request - i.e. we
+        # already have the entire file
+        if first_byte and req.status_code == 416:
+            os.replace(part, dst)
+            return os.path.getsize(dst)
 
-    return file_size
+        req.raise_for_status()
+
+        # `raise_for_status` only baulks at 4xx/5xx. Anything that isn't a plain
+        # 200/206 is not a file: figshare sits behind a WAF that answers requests
+        # it doesn't like with an empty 202 which would otherwise land on disk as
+        # a 0-byte .h5.
+        if req.status_code not in (200, 206):
+            raise requests.HTTPError(
+                f"Expected status 200 or 206 but got {req.status_code} for {url}",
+                response=req,
+            )
+
+        # For the same reason: a block page may well be served as a 200
+        if req.headers.get("Content-Type", "").startswith("text/html"):
+            raise requests.HTTPError(
+                f"Server returned an HTML page instead of a file for {url}. This "
+                "typically means the request was blocked - e.g. by a firewall or "
+                "proxy, or because the host does not allow downloads from this IP.",
+                response=req,
+            )
+
+        # If we asked for a range but the server ignored it, we have to start over
+        if first_byte and req.status_code != 206:
+            first_byte = 0
+
+        # For a partial response the Content-Length is that of the remaining
+        # bytes, not of the entire file
+        file_size = req.headers.get("Content-Length")
+        file_size = int(file_size) + first_byte if file_size is not None else None
+
+        with tqdm(
+            total=file_size,
+            initial=first_byte,
+            unit="B",
+            unit_scale=True,
+            desc=os.path.basename(dst),
+        ) as pbar:
+            downloaded = first_byte
+            with open(part, "ab" if first_byte else "wb") as f:
+                for chunk in req.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        pbar.update(len(chunk))
+
+        # Don't rely on the HTTP layer to notice a short read for us. Note that
+        # we leave the .part file in place so the download can be resumed.
+        if file_size is not None and downloaded != file_size:
+            raise requests.HTTPError(
+                f"Download incomplete: expected {file_size} bytes but got "
+                f"{downloaded} for {url}",
+                response=req,
+            )
+
+    os.replace(part, dst)
+
+    return os.path.getsize(dst)
 
 
 def get_data_home(data_home: Optional[str] = None, create=False) -> str:
