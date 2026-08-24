@@ -405,6 +405,16 @@ def register_mirror_transforms():
     transforms.registry.register_transform(
         transform=tr, source="MANC", target=None, transform_type="mirror"
     )
+    # 8. JRCFIB2018F (hemibrain)
+    fp = os.path.join(data_filepath, "JRCFIB2018F_mirror_landmarks.csv")
+    lm = pd.read_csv(fp)
+    tr = transforms.TPStransform(
+        lm[["x_flip", "y_flip", "z_flip"]].values,
+        lm[["x_mirr", "y_mirr", "z_mirr"]].values,
+    )
+    transforms.registry.register_transform(
+        transform=tr, source="JRCFIB2018F", target=None, transform_type="mirror"
+    )
 
 
 def register_unit_transforms():
