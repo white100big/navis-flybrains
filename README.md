@@ -305,6 +305,7 @@ conda create -n hdf5_112 \
 ### Downloads fail on Google Colab (and other cloud machines)
 
 <details>
+
 `download_jrc_transforms` and `download_jrc_vnc_transforms` fetch their H5 files from figshare.
 On Google Colab - and likely on other cloud VMs, CI runners or compute clusters - these downloads
 tend to fail with an `HTTPError`:

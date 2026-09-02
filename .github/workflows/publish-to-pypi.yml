@@ -35,9 +35,20 @@ jobs:
         pip install
         dist/*.whl
     - name: Test import of the package
-      run: >-
-        python3 -c
-        "import flybrains"
+      # Must not run from the repo root: there, `import flybrains` picks up the
+      # source tree instead of the installed wheel and passes even when the
+      # wheel vendors no data files at all (see 0.6.0-0.6.2).
+      working-directory: /tmp
+      run: python3 -c "import flybrains"
+    - name: Check that the wheel vendors all data files
+      working-directory: /tmp
+      run: python3 $GITHUB_WORKSPACE/tools/check_vendored_data.py
+    - name: Check that the sdist is buildable
+      run: |
+        mkdir -p /tmp/sdist-check
+        tar xzf dist/*.tar.gz -C /tmp/sdist-check
+        cd /tmp/sdist-check/flybrains-*
+        python3 setup.py --version
     - name: Publish distribution 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1.13
       with:

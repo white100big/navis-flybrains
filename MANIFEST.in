@@ -1,4 +1,22 @@
+# Read by setup.py at build time - without this the sdist is unbuildable.
+include requirements.txt
+
+# Data files that get loaded at runtime. Note that the landmark CSVs live at the
+# top level of flybrains/data while the elastix parameter files live in
+# per-transform subdirectories - `recursive-include` covers both. Do not switch
+# this back to `include flybrains/data/**/*.csv`: distutils patterns are not
+# globstar, so `**` matches exactly one directory level and silently drops every
+# top-level CSV (this is what broke 0.6.1/0.6.2).
 include flybrains/data/*.json
-recursive-include flybrains/data/ *.csv
-recursive-include flybrains/data/ *.txt
-include flybrains/meshes/*.ply
+recursive-include flybrains/data *.csv
+recursive-include flybrains/data *.txt
+
+# Meshes plus the .md files documenting their provenance/licensing.
+recursive-include flybrains/meshes *.ply
+recursive-include flybrains/meshes *.md
+recursive-include flybrains/data *.md
+
+# Notebooks used to generate the landmarks are kept in the repo but not shipped.
+global-exclude *.ipynb
+prune flybrains/data/.ipynb_checkpoints
+global-exclude .DS_Store
