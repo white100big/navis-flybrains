@@ -53,6 +53,66 @@ Antigravity IDE는 개발자가 일일이 코드를 짜는 기존 방식과 달�
 
 안티그래비티 IDE를 사용하면 복잡한 생물학 좌표 변환과 로봇 물리 엔진 결합이라는 난이도 높은 작업을 AI 조수와 협업하는 형태로 아주 쉽고 빠르게 구체화할 수 있습니다. [2, 4] 
 프로젝트의 첫 단추로 어떤 로봇 시뮬레이터 환경(예: MuJoCo, PyBullet, Webots 등)을 염두에 두고 계시나요? 혹은 실제 하드웨어 로봇 제어까지 고려 중이신지 알려주시면, 에이전트에게 입력할 더 정밀한 초기 프롬프트 설계를 도와드리겠습니다.
+================================================================================
+
+
+
+내 PC에서 프로젝트를 진행하려면, 이 깃허브의 모든 파일들을 내려받아야 하는가?
+
+
+아니요, 깃허브의 모든 파일들을 수동으로 직접 내려받으실 필요가 전혀 없습니다. [navis-flybrains](https://github.com/navis-org/navis-flybrains)는 일반적인 깃허브 오픈소스 프로젝트들과 달리, 파이썬 패키지 관리자(pip)를 통해 라이브러리 형태로 간단히 설치해서 사용하도록 설계되어 있기 때문입니다. [1, 2] 
+오히려 깃허브에 있는 소스코드만 다운로드하면 정작 중요한 뇌 템플릿 간의 변환 데이터(Transform Data)들이 포함되어 있지 않아 정상적으로 작동하지 않습니다. 올바른 설치 및 세팅 방법은 다음과 같습니다. [2, 3] 
+------------------------------
+## 📦 올바른 설치 및 세팅 방법 (3단계)
+터미널이나 안티그래비티 IDE 패널에서 파이썬 패키지를 설치한 뒤, 코드를 통해 대용량 변환 데이터를 PC로 다운로드받아야 합니다. [2, 4] 
+1단계: 라이브러리 설치
+터미널을 열고 파이썬 명령어로 핵심 라이브러리들을 설치합니다. [1, 5] 
+
+pip3 install navis flybrains mujoco
+
+2단계: 대용량 변환 데이터 다운로드 (일회성)
+파이썬 스크립트나 주피터 노트북을 열고 아래 코드를 실행합니다. 이 함수들이 각 연구소 서버에서 실제 프로젝트에 필요한 정밀 변환 매핑 파일들을 내 PC로 알아서 다운로드해 줍니다. [2, 4, 6] 
+
+import flybrains
+# 필요한 연구소의 변환 데이터 컬렉션 다운로드 (처음 한 번만 실행)
+flybrains.download_jefferislab_transforms()  # Jefferis Lab 데이터
+flybrains.download_jrc_transforms()          # Janelia 연구소 데이터
+flybrains.download_vfb_transforms()          # Virtual Fly Brain 데이터
+# 다운로드한 변환 데이터 등록
+flybrains.register_transforms()
+
+3단계: 외부 의존성 프로그램 설치 (선택 사항)
+프로젝트에서 어떤 데이터를 다루느냐에 따라 컴퓨터 자체에 별도 프로그램을 설치해야 할 수 있습니다. [1, 7] 
+
+* 
+* CMTK (Computational Morphometry Toolkit): Jefferis lab이나 VFB 관련 데이터셋 변환을 쓸 때 필수입니다.
+* Elastix: 최신 뇌+신경색 데이터인 FANC, BANC 커넥톰 변환을 쓸 때 필요합니다. [1, 7, 8] 
+* 
+
+
+## 🤖 안티그래비티(Antigravity) IDE에서 진행할 때의 팁
+안티그래비티 IDE 환경을 쓰고 계신다면 더욱 편리합니다. 
+우측 Agent 창에 다음과 같이 한 줄만 지시하면 위 가이드를 혼자 알아서 척척 진행합니다.
+
+"내 PC 환경에 navis랑 flybrains 설치해 주고, 필요한 기본 뇌 변환 데이터셋(Jefferis, JRC) 다운로드 스크립트까지 작성해서 실행해 줘. 
+외부 프로그램인 CMTK나 Elastix 설치가 필요한지도 내 시스템 환경 확인해서 알려줘."
+
+이렇게 요청하시면 깃허브에서 수동으로 무언가를 다운로드할 필요 없이 곧바로 로보틱스 시뮬레이션 코드 작성 단계로 넘어가실 수 있습니다.
+
+===============================================================================
+
+[1] [https://github.com](https://github.com/navis-org/navis-flybrains)
+[2] [https://www.virtualflybrain.org](https://www.virtualflybrain.org/docs/tools/navis-flybrains/)
+[3] [https://pypi.org](https://pypi.org/project/flybrains/0.1.2/)
+[4] [https://pypi.org](https://pypi.org/project/flybrains/)
+[5] [https://navis-org.github.io](https://navis-org.github.io/navis/installation/)
+[6] [https://www.virtualflybrain.org](https://www.virtualflybrain.org/docs/tools/navis-flybrains/)
+[7] [https://www.virtualflybrain.org](https://www.virtualflybrain.org/docs/tools/navis-flybrains/)
+[8] [https://pypi.org](https://pypi.org/project/flybrains/)
+
+
+
+
 
 [1] [https://github.com](https://github.com/hamodywe/antigravity-mastery-handbook)
 [2] [https://antigravity.google](https://antigravity.google/docs/ide/overview/)
